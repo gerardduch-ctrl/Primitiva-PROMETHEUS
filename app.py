@@ -47,7 +47,7 @@ def preparar_grups(res, stats):
     n_u6, n_u18 = list(set([n for s in u6 for n in s['combination']])), [n for s in u18 for n in s['combination']]
     g["DESPERTANDO"] = [n for n in n_u6 if n in g["CALIENTES"]]
     g["NEUTROS"] = [n for n in nums_49 if n_u9.count(n) == 1 and n_u18.count(n) == 2]
-    g["MELLIZOS"] =
+    g["MELLIZOS"] = [11, 22, 33, 44]
     g["COMUNES"] = list(set(g["DOWN"]) & set(g["HIELO"]) & set(g["FRIOS"]))
     return g
 
@@ -55,7 +55,6 @@ def preparar_grups(res, stats):
 def generar_aposta(idx, g, m_on, c_on, usats):
     for _ in range(5000):
         c = []
-        # Criba: 4 Desp + 2 Comunes + 1 Caliente No Repe
         p_desp = g["DESPERTANDO"] if len(g["DESPERTANDO"]) >= 4 else g["COMUNES"]
         c.extend(random.sample(p_desp if p_desp else g["UP"], 4))
         p_com = [n for n in g["COMUNES"] if n not in c]
@@ -64,16 +63,13 @@ def generar_aposta(idx, g, m_on, c_on, usats):
         c.append(random.choice(p_cal if p_cal else g["UP"]))
         c.sort()
         
-        # Filtres Paritat/Decenes/Unitats
         p_ok, d_ok, u_ok = verificar_filtres(c)
         pares = [n for n in c if n % 2 == 0]
         if idx % 2 != 0 and len(pares) != 3: continue
         if idx % 2 == 0 and len(pares) != 4: continue
         if not d_ok or not u_ok: continue
 
-        # Mellizos/Clumps/Freqüència
-        has_m = any(n in g["MELLIZOS"] for n in c)
-        if not m_on and has_m: continue
+        if not m_on and any(n in g["MELLIZOS"] for n in c): continue
         if m_on and idx <= 4:
             v_m = [n for n in g["MELLIZOS"] if (n in g["FRIOS"] or n in g["DESPERTANDO"] or n in g["NEUTROS"]) and n not in g["REPES"]]
             if not any(m in c for m in v_m): continue
