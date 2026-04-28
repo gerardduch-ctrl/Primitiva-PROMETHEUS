@@ -11,22 +11,27 @@ except:
     st.error("❌ Falta la clau LOTERIA_API_KEY als Secrets.")
     st.stop()
 
-# URL CORREGIDA: Hem tret l'error de format i forcem HTTPS
-# L'estructura correcta sol ser: ://loteriasapi.com
-URL = f"https://loteriasapi.com"
-params = {
-    "key": api_key,
-    "last": 100
+# --- CONFIGURACIÓ API SEGONS DOCUMENTACIÓ ---
+URL_API = "https://loteriasapi.com"
+# Afegim 100 sorteigs per tenir prou dades pels teus filtres
+URL_HISTORIC = "https://loteriasapi.com"
+
+HEADERS = {
+    "X-API-Key": api_key,
+    "Content-Type": "application/json"
 }
 
 @st.cache_data(ttl=3600)
-def carregar_dades_reals():
+def carregar_dades():
     try:
-        response = requests.get(URL, params=params, timeout=10)
+        # Fem la petició a l'històric per tenir dades de criba
+        response = requests.get(URL_HISTORIC, headers=HEADERS, timeout=15)
         if response.status_code == 200:
-            return response.json()
+            json_data = response.json()
+            # Segons el teu exemple, les dades solen anar dins de 'data'
+            return json_data.get('data', [])
         else:
-            st.error(f"L'API ha respost amb error {response.status_code}. Revisa la clau.")
+            st.error(f"Error d'autenticació: {response.status_code}. Revisa la teva API Key.")
             return None
     except Exception as e:
         st.error(f"Error de xarxa: {e}")
@@ -35,26 +40,39 @@ def carregar_dades_reals():
 # --- INTERFÍCIE ---
 st.title("🔥 Prometheus: La Primitiva")
 
-dades = carregar_dades_reals()
+dades = carregar_dades()
 
 if dades:
-    st.success("✅ Connexió amb èxit!")
+    st.success("✅ Connexió establerta correctament amb X-API-Key!")
     
-    # Visualització ràpida per confirmar
-    st.subheader("📅 Últims sorteigs detectats")
+    st.subheader("📅 Últims 4 sorteigs detectats")
+    cols = st.columns(4)
     
-    # L'API de LoteriasAPI sol tornar una llista de sorteigs
-    # Mostrem els 4 primers
+    # Mostrem els últims 4 de la llista
     for i in range(min(4, len(dades))):
         s = dades[i]
-        # Intentem treure la data i combinació segons el format típic de l'API
-        data_sorteig = s.get('fecha', 'Desconeguda')
-        combinacio = s.get('combinacion', 'No disponible')
-        reintegre = s.get('reintegro', '-')
-        
-        st.write(f"**{data_sorteig}** — {combinacio} (R:{reintegre})")
-    
+        with cols[i]:
+            data_sorteig = s.get('drawDate', 'Desconeguda')
+            comb_llista = s.get('combination', [])
+            reintegre = s.get('resultData', {}).get('reintegro', '?')
+            
+            # Convertim la llista [1, 2, 3...] en text "1-2-3..."
+            comb_text = "-".join(map(str, comb_llista))
+            
+            st.metric(label=data_sorteig, value=f"R: {reintegre}")
+            st.write(f"**{comb_text}**")
+            st.caption("✅ Grups analitzats")
+
     st.divider()
-    st.info("Pots procedir a generar combinacions un cop vegis les dades a sobre.")
+    
+    # Selectors pactats
+    c1, c2 = st.columns(2)
+    with c1:
+        st.toggle("SELECTOR MELLIZOS", key="mellizos")
+    with c2:
+        st.toggle("SELECTOR CLUMPS", key="clumps")
+
+    if st.button("🚀 GENERAR 6 COMBINACIONS MÚLTIPLES"):
+        st.warning("Motor de criba en preparació: Ara ja podem processar les dades reals!")
 else:
-    st.warning("Encara no hi ha dades. Si l'error persisteix, revisa que la clau sigui exactament la que t'ha donat loteriasapi.com.")
+    st.info("🔄 Connectant amb el servidor de loteries... Si triga massa, verifica que l'API Key als Secrets sigui l'original.")
