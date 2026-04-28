@@ -53,7 +53,7 @@ def preparar_grups(res, stats):
     n_u6, n_u18 = list(set([n for s in u6 for n in s['combination']])), [n for s in u18 for n in s['combination']]
     g["DESPERTANDO"] = [n for n in n_u6 if n in g["CALIENTES"]]
     g["NEUTROS"] = [n for n in nums_49 if n_u9.count(n) == 1 and n_u18.count(n) == 2]
-    g["MELLIZOS"] =
+    g["MELLIZOS"] = [11, 22, 33, 44]
     g["COMUNES"] = list(set(g["DOWN"]) & set(g["HIELO"]) & set(g["FRIOS"]))
     return g
 
