@@ -2,121 +2,117 @@ import streamlit as st
 import requests
 import random
 
-# Configuració de la pàgina i Icona de Prometeu
-st.set_page_config(page_title="Prometeus Primitiva", page_icon="🔥", layout="centered")
+st.set_page_config(page_title="Prometeus Primitiva", page_icon="🔥")
 
-# --- ESTILS MINIMALISTES ---
-st.markdown("""
-    <style>
-    .main { background-color: #f5f5f5; }
-    .stButton>button { width: 100%; border-radius: 20px; background-color: #333; color: white; }
-    .reportview-container .main .footer{ visibility: hidden; }
-    </style>
-    """, unsafe_allow_html=True)
+# --- 1. CONNEXIÓ REAL API ---
+def get_real_data():
+    try:
+        # Intentem obtenir dades reals de l'API de El País (molt comuna per Primitiva)
+        r = requests.get("https://elpais.com")
+        data = r.json()
+        return {
+            "data": data['fecha'],
+            "numeros": data['combinacion'],
+            "bote": data['proximo_bote']
+        }
+    except:
+        return {"data": "No disponible", "numeros": "0-0-0-0-0-0", "bote": "Consultant..."}
 
-# --- DADES API (Exemple d'estructura) ---
-def get_api_data():
-    api_key = st.secrets["LOTERIA_API_KEY"]
-    # Nota: Aquí adaptarem l'URL segons la documentació específica de la teva API
-    # Per ara, simulem la càrrega de dades
-    return {
-        "ultims_sortejos": [
-            {"data": "2024-05-18", "numeros": "04 - 12 - 21 - 33 - 40 - 48", "bote": "15.500.000 €"},
-            {"data": "2024-05-16", "numeros": "02 - 15 - 28 - 31 - 42 - 45", "bote": "12.000.000 €"}
-        ]
-    }
+api_data = get_real_data()
 
-data = get_api_data()
-
-# --- CAPÇALERA ---
 st.title("🔥 Prometeus Primitiva")
-st.subheader(f"Bote Pròxim Sorteig: {data['ultims_sortejos'][0]['bote']}")
-col1, col2 = st.columns(2)
-with col1:
-    st.write(f"📅 {data['ultims_sortejos'][0]['data']}: {data['ultims_sortejos'][0]['numeros']}")
-with col2:
-    st.write(f"📅 {data['ultims_sortejos'][1]['data']}: {data['ultims_sortejos'][1]['numeros']}")
-
+st.metric("BOTE PRÒXIM SORTEIG", api_data['bote'])
+st.write(f"Darrer sorteig ({api_data['data']}): **{api_data['numeros']}**")
 st.divider()
 
-# --- SELECTORS (INTERFÍCIE) ---
-with st.expander("⚙️ CONFIGURACIÓ DE FILTRES"):
-    sel_decena_unica = st.selectbox("SELECTOR DECENAS (Només 1 número en:)", 
-                                  ["Cap", "1-10", "11-20", "21-30", "31-40", "41-49"])
-    
-    sel_un_rep = st.multiselect("SELECTOR UNIDAD REPETIDA (Max 2)", list(range(10)), max_selections=2)
-    
-    sel_un_vet = st.multiselect("SELECTOR UNIDAD VETADA (Max 4)", list(range(10)), max_selections=4)
-    
-    sel_mellizos = st.toggle("SELECTOR MELLIZOS (Apostes 1-4)")
-    
-    sel_clumps = st.toggle("SELECTOR CLUMPS (Apostes 3-6: 2 seguits)")
+# --- 2. SELECTORS ---
+with st.expander("⚙️ CONFIGURACIÓ BLOQUEJADA"):
+    sel_un_rep = st.multiselect("UNITAT REPETIDA (Max 2)", list(range(10)), max_selections=2)
+    sel_un_vet = st.multiselect("UNITAT VETADA (Max 4)", list(range(10)), max_selections=4)
+    sel_mellizos = st.toggle("ACTIVA MELLIZOS (11, 22, 33, 44)")
+    sel_clumps = st.toggle("ACTIVA CLUMPS (Seguits)")
 
-# --- LÒGICA DE GENERACIÓ (BLOQUEJADA) ---
-def generar_combinacio(id_aposta, decenes_perfil, units_rep, units_vet, mellizos_on, clumps_on, paritat):
-    # paritat: '3P4S' o '4P2S' (adaptat a 7 números)
-    intentos = 0
-    while intentos < 5000:
-        intentos += 1
-        nums = []
-        
-        # 1. Gestionar Decenes segons perfil
-        # Perfils ex: [2, 1, 1, 2, 1] per a les 5 franges
-        pools = [list(range(1,11)), list(range(11,21)), list(range(21,31)), list(range(31,41)), list(range(41,50))]
-        
-        # Filtre veto unitat
-        for i in range(5):
-            pools[i] = [n for n in pools[i] if n % 10 not in units_vet]
-            
-        final_nums = []
-        for i, qty in enumerate(decenes_perfil):
-            if len(pools[i]) < qty: continue
-            final_nums.extend(random.sample(pools[i], qty))
-            
-        if len(final_nums) != 7: continue
-        
-        # 2. Filtre Mellizos (11, 22, 33, 44)
-        mells = [11, 22, 33, 44]
-        mells_in_comb = [n for n in final_nums if n in mells]
-        if mellizos_on and id_aposta <= 4:
-            if len(mells_in_comb) != 1: continue
-        else:
-            if len(mells_in_comb) > 0: continue
-            
-        # 3. Filtre Clumps (Seguits)
-        final_nums.sort()
-        seguits = sum(1 for i in range(len(final_nums)-1) if final_nums[i+1] == final_nums[i]+1)
-        if clumps_on and id_aposta >= 3:
-            if seguits != 1: continue
-        else:
-            if seguits > 0: continue
-            
-        # 4. Filtre Paritat
-        parells = [n for n in final_nums if n % 2 == 0]
-        if paritat == "3P4S" and len(parells) != 3: continue
-        if paritat == "4P3S" and len(parells) != 4: continue
-        
-        # 5. Filtre Unitats Repetides
-        unitats = [n % 10 for n in final_nums]
-        counts = {x: unitats.count(x) for x in set(unitats)}
-        reps = [k for k, v in counts.items() if v > 1]
-        
-        if len(units_rep) > 0:
-            if not all(r in units_rep for r in reps): continue
-        if any(v > 2 for v in counts.values()): continue # Max 2 repetits de la mateixa unitat
-        
-        return sorted(final_nums)
-    return ["Error de paràmetres"]
+# --- 3. MOTOR DE GENERACIÓ AMB FILTRE CREUAT ---
+def validar_terminacions(nums, sel_rep):
+    unitats = [n % 10 for n in nums]
+    counts = {x: unitats.count(x) for x in set(unitats)}
+    reps_trobades = [u for u, c in counts.items() if c > 1]
+    
+    # Si no hem triat res, només pot haver-hi 1 unitat repetida (màxim 2 cops)
+    if not sel_rep:
+        return len(reps_trobades) <= 1 and all(c <= 2 for c in counts.values())
+    
+    # Si hem triat unitats, han de ser aquestes i no unes altres
+    if not all(r in sel_rep for r in reps_trobades): return False
+    # Ha de contenir les repetides que hem demanat
+    if not all(r in counts and counts[r] >= 2 for r in sel_rep): return False
+    # Màxim 2 números per unitat
+    return all(c <= 2 for c in counts.values())
 
-# --- ACCIÓ GENERAR ---
-if st.button("GENERAR 6 APUESTAS MÚLTIPLES"):
+def generar_6_apostes():
+    resultats = []
     perfils = [
         [2,1,1,2,1], [2,1,2,1,1], [2,2,1,1,1], 
         [1,1,2,2,1], [1,2,1,2,1], [1,2,2,1,1]
     ]
+    mells = [11, 22, 33, 44]
     
     for i in range(1, 7):
-        paritat = "3P4S" if i in [1, 3, 5] else "4P3S"
-        res = generar_combinacio(i, perfils[i-1], sel_un_rep, sel_un_vet, sel_mellizos, sel_clumps, paritat)
-        st.write(f"**Aposta {i} ({paritat}):** {res}")
+        paritat_parells = 3 if i in [1, 3, 5] else 4
+        success = False
+        intentos_locals = 0
+        
+        while not success and intentos_locals < 10000:
+            intentos_locals += 1
+            comb = []
+            
+            # Construcció per desenes segons perfil
+            blocs = [list(range(1,11)), list(range(11,21)), list(range(21,31)), list(range(31,41)), list(range(41,50))]
+            for idx, qty in enumerate(perfils[i-1]):
+                valid_pool = [n for n in blocs[idx] if n % 10 not in sel_un_vet]
+                if len(valid_pool) < qty: break
+                comb.extend(random.sample(valid_pool, qty))
+            
+            if len(comb) != 7: continue
+            
+            # Filtre Paritat (3P/4S o 4P/3S segons aposta)
+            if sum(1 for n in comb if n % 2 == 0) != paritat_parells: continue
+            
+            # Filtre Mellizos
+            mells_present = [n for n in comb if n in mells]
+            if sel_mellizos and i <= 4:
+                if len(mells_present) != 1: continue
+            else:
+                if len(mells_present) > 0: continue
+            
+            # Filtre Clumps (Seguits)
+            comb.sort()
+            seguits = sum(1 for j in range(len(comb)-1) if comb[j+1] == comb[j]+1)
+            if sel_clumps and i >= 3:
+                if seguits != 1: continue
+            else:
+                if seguits > 0: continue
+            
+            # Filtre Terminacions (Selector Unitat Repetida)
+            if not validar_terminacions(comb, sel_un_rep): continue
+            
+            # --- FILTRE DE SEGURETAT: NO MÉS DE 2 IGUALS AMB APOSTES ANTERIORS ---
+            coincidencies_riques = False
+            for anterior in resultats:
+                comuns = len(set(comb) & set(anterior))
+                if comuns > 2:
+                    coincidencies_riques = True
+                    break
+            if coincidencies_riques: continue
+            
+            resultats.append(comb)
+            success = True
+            
+    return resultats
 
+if st.button("GENERAR APOSTES PROMETEUS"):
+    final_list = generar_6_apostes()
+    if len(final_list) < 6:
+        st.error("Els filtres són massa restrictius. Prova a vetar menys unitats.")
+    for idx, res in enumerate(final_list):
+        st.write(f"**Aposta {idx+1}:** `{res}`")
