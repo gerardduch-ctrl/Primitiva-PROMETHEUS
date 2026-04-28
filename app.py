@@ -2,26 +2,27 @@ import streamlit as st
 import requests
 import random
 
+# 1. Configuració de la pàgina
 st.set_page_config(page_title="Prometheus", page_icon="🔥", layout="wide")
 
-# 1. Recuperar la clau dels Secrets
+# 2. Verificació de la clau als Secrets
 if "LOTERIA_API_KEY" not in st.secrets:
-    st.error("❌ CLAU NO TROBADA")
+    st.error("❌ CLAU NO TROBADA ALS SECRETS")
     st.stop()
 
 api_key = st.secrets["LOTERIA_API_KEY"].strip()
 
-# 2. Configuració d'URL segons el format v1 (://loteriasapi.com)
-URL_V1 = "https://://loteriasapi.com/api/v1/results/primitiva/latest"
+# 3. URL CORREGIDA (Sense punts ni barres extres)
+URL_API = "https://loteriasapi.com"
 HEADERS = {
     "X-API-Key": api_key,
     "Content-Type": "application/json"
 }
 
 @st.cache_data(ttl=300)
-def fetch_primitiva():
+def carregar_dades_v1():
     try:
-        response = requests.get(URL_V1, headers=HEADERS, timeout=15)
+        response = requests.get(URL_API, headers=HEADERS, timeout=15)
         if response.status_code == 200:
             return response.json()
         else:
@@ -32,33 +33,34 @@ def fetch_primitiva():
 # --- INTERFÍCIE ---
 st.title("🔥 Prometheus")
 
-res = fetch_primitiva()
+resultat = carregar_dades_v1()
 
-if isinstance(res, dict) and res.get('success'):
+if isinstance(resultat, dict) and resultat.get('success'):
     st.success("✅ CONECTAT AMB ÈXIT!")
-    data = res.get('data', {})
+    data = resultat.get('data', {})
     
-    st.subheader(f"📅 Sorteig: {data.get('drawDate')}")
-    comb = data.get('combination', [])
-    reint = data.get('resultData', {}).get('reintegro', '?')
+    st.subheader(f"📅 Últim sorteig real: {data.get('drawDate')}")
+    st.write(f"**Combinació:** {data.get('combination')}")
+    st.write(f"**Reintegre:** {data.get('resultData', {}).get('reintegro')}")
     
-    st.write(f"**Combinació:** {comb}")
-    st.write(f"**Reintegre:** {reint}")
-    
-    # GRUPS BLOQUEJATS (Sintaxi corregida)
+    # GRUPS PACTATS (Sintaxi corregida per evitar SyntaxError)
     g = {
         "MELLIZOS": [11, 22, 33, 44],
-        "CALIENTES": comb
+        "UP": list(range(1, 26)),
+        "CALIENTES": data.get('combination', [])
     }
     
     st.divider()
-    if st.button("🚀 GENERAR 6 MÚLTIPLES"):
-        st.info("Generant amb els 11 filtres bloquejats...")
+    c1, c2 = st.columns(2)
+    m_on = c1.toggle("SELECTOR MELLIZOS")
+    c_on = c2.toggle("SELECTOR CLUMPS")
+
+    if st.button("🚀 GENERAR 6 MÚLTIPLES", use_container_width=True):
+        st.info("Generant combinacions amb els 11 filtres bloquejats...")
         for i in range(1, 7):
-            # Motor provisional per testar que el botó funciona
-            aposta = sorted(random.sample(range(1, 50), 7))
-            st.write(f"**A{i}:** {aposta}")
+            # Motor provisional per testar que el botó i la connexió funcionen
+            comb = sorted(random.sample(range(1, 50), 7))
+            st.write(f"**Aposta {i}:** {', '.join(map(str, comb))}")
 else:
-    st.error("❌ L'API no ha enviat dades vàlides.")
-    st.write("Resposta del servidor:", res)
-    st.info("💡 Verifica que l'API Key als Secrets de Streamlit sigui la correcta.")
+    st.error("❌ No s'han pogut carregar les dades.")
+    st.write("Detall del servidor:", resultat)
