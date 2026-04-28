@@ -7,137 +7,120 @@ st.set_page_config(page_title="Prometeus Primitiva", page_icon="🔥", layout="c
 # --- ESTILS ---
 st.markdown("""
     <style>
-    .stButton>button { height: 60px; font-size: 20px; font-weight: bold; border-radius: 15px; background-color: #FF4B4B; color: white; }
-    .panel-box { padding: 20px; border: 1px solid #ddd; border-radius: 10px; margin-bottom: 20px; background-color: #fafafa; }
-    h3 { margin-bottom: 15px; color: #333; border-bottom: 2px solid #FF4B4B; width: fit-content; }
+    .stButton>button { height: 70px; font-size: 22px; font-weight: bold; border-radius: 15px; background-color: #FF4B4B; color: white; margin-top: 20px; }
+    h3 { margin-top: 25px; color: #333; border-bottom: 2px solid #FF4B4B; width: 100%; }
+    /* Estil per als radio buttons horitzontals */
+    div.row-widget.stRadio > div{ flex-direction:row; justify-content: center; gap: 10px; }
     </style>
     """, unsafe_allow_html=True)
 
 st.title("🔥 Prometeus Primitiva")
-st.write("Generador robust amb filtres bloquejats.")
 
-# --- PANELLS DE CONFIGURACIÓ (TOT DESPLEGAT) ---
+# --- PANELLS DE CONFIGURACIÓ (ESTIL BOTONS HORITZONTALS) ---
 
 st.markdown("### 1. Selector de Decenes")
-st.write("Tria quina desena vols forçar que tingui NOMÉS 1 número:")
-sel_decena_koixa = st.radio("", ["Cap", "1-10", "11-20", "21-30", "31-40", "41-49"], horizontal=True, label_visibility="collapsed")
+st.write("Desena amb NOMÉS 1 número:")
+sel_decena_koixa = st.radio("D", ["Cap", "1-10", "11-20", "21-30", "31-40", "41-49"], horizontal=True, label_visibility="collapsed")
 
-st.divider()
+st.markdown("### 2. Selector d'Unitat Repetida (1)")
+st.write("Tria la primera terminació que vols que es repeteixi:")
+sel_un_rep1 = st.radio("U1", ["Cap", 0, 1, 2, 3, 4, 5, 6, 7, 8, 9], horizontal=True, label_visibility="collapsed")
 
-st.markdown("### 2. Selector d'Unitats Repetides")
-st.write("Tria quines terminacions (0-9) vols que apareguin repetides (Max 2):")
-sel_un_rep = st.multiselect("Terminacions forçades:", list(range(10)), max_selections=2, label_visibility="collapsed")
+st.markdown("### 3. Selector d'Unitat Repetida (2)")
+st.write("Tria la segona terminació (opcional):")
+sel_un_rep2 = st.radio("U2", ["Cap", 0, 1, 2, 3, 4, 5, 6, 7, 8, 9], horizontal=True, label_visibility="collapsed")
 
-st.divider()
+st.markdown("### 4. Selector d'Unitat Vetada")
+st.write("Terminació que vols PROHIBIR en aquesta generació:")
+sel_un_vet = st.radio("V", ["Cap", 0, 1, 2, 3, 4, 5, 6, 7, 8, 9], horizontal=True, label_visibility="collapsed")
 
-st.markdown("### 3. Selector d'Unitats Vetades")
-st.write("Tria fins a 4 terminacions que NO vols que apareguin:")
-sel_un_vet = st.multiselect("Terminacions prohibides:", list(range(10)), max_selections=4, label_visibility="collapsed")
-
-st.divider()
-
-st.markdown("### 4. Selectors Especials")
+st.markdown("### 5. Selectors Especials")
 col1, col2 = st.columns(2)
 with col1:
-    sel_mellizos = st.toggle("ACTIVA MELLIZOS (Apostes 1-4)", value=False)
+    sel_mellizos = st.toggle("ACTIVA MELLIZOS", value=False)
 with col2:
-    sel_clumps = st.toggle("ACTIVA CLUMPS (Apostes 3-6)", value=False)
+    sel_clumps = st.toggle("ACTIVA CLUMPS", value=False)
 
 st.divider()
 
-# --- MOTOR DE CÀLCUL ROBUST ---
+# --- LÒGICA DE CÀLCUL ---
 
-def validar_terminacions(nums, sel_rep):
+def validar_terminacions(nums, reps_demanades):
     units = [n % 10 for n in nums]
     counts = {x: units.count(x) for x in set(units)}
     reps_reals = [u for u, c in counts.items() if c > 1]
     
-    if sel_rep:
-        # Ha de tenir les repetides demanades i NOMÉS aquestes
-        if not all(r in reps_reals for r in sel_rep): return False
-        if not all(r in sel_rep for r in reps_reals): return False
-    else:
-        # Si no hi ha selecció, màxim una parella de terminacions repetides
-        if len(reps_reals) > 1: return False
-        
-    return all(c <= 2 for c in counts.values()) # Màxim 2 números per terminació
+    # Comprovar que les repetides són exactament les demanades
+    if not all(r in reps_reals for r in reps_demanades): return False
+    if not all(r in reps_demanades for r in reps_reals): return False
+    # Màxim 2 cops cada unitat
+    return all(c <= 2 for c in counts.values())
 
 def generar_sistema():
     resultats = []
-    # Perfils de 7 números (sumen 7)
-    perfils_base = [
-        [2,1,1,2,1], [2,1,2,1,1], [2,2,1,1,1], [1,1,2,2,1], [1,2,1,2,1],
-        [1,2,2,1,1], [1,1,1,2,2], [1,1,2,1,2], [1,2,1,1,2], [2,1,1,1,2]
-    ]
+    perfils_base = [[2,1,1,2,1],[2,1,2,1,1],[2,2,1,1,1],[1,1,2,2,1],[1,2,1,2,1],[1,2,2,1,1],[1,1,1,2,2],[1,1,2,1,2],[1,2,1,1,2],[2,1,1,1,2]]
     
-    dec_map = {"1-10":0, "11-20":1, "21-30":2, "31-40":3, "41-49":4}
-    mells_nums = [11, 22, 33, 44]
-
-    for i in range(1, 7): # Generem 6 apostes
+    # Processar unitats repetides
+    reps_demanades = []
+    if sel_un_rep1 != "Cap": reps_demanades.append(sel_un_rep1)
+    if sel_un_rep2 != "Cap": reps_demanades.append(sel_un_rep2)
+    
+    for i in range(1, 7):
         success = False
+        paritat_parells = 3 if i in [1,3,5] else 4
         intentos = 0
-        paritat_parells = 3 if i in [1, 3, 5] else 4
         
-        while not success and intentos < 10000:
+        while not success and intentos < 5000:
             intentos += 1
             comb = []
             perfil = random.choice(perfils_base)
             
-            # Filtre Selector Decenes
-            if sel_decena_koixa != "Cap":
-                if perfil[dec_map[sel_decena_koixa]] != 1: continue
+            # Filtre Decena Koixa
+            dec_map = {"1-10":0, "11-20":1, "21-30":2, "31-40":3, "41-49":4}
+            if sel_decena_koixa != "Cap" and perfil[dec_map[sel_decena_koixa]] != 1: continue
 
-            # Generació per blocs
+            # Generació
             blocs = [list(range(1,11)), list(range(11,21)), list(range(21,31)), list(range(31,41)), list(range(41,50))]
             possible = True
             for idx, qty in enumerate(perfil):
-                pool = [n for n in blocs[idx] if n % 10 not in sel_un_vet]
-                if len(pool) < qty:
-                    possible = False
-                    break
+                # Filtre veto (ara només 1 veto per simplificar l'estil radio, però robust)
+                pool = [n for n in blocs[idx] if (sel_un_vet == "Cap" or n % 10 != sel_un_vet)]
+                if len(pool) < qty: possible = False; break
                 comb.extend(random.sample(pool, qty))
             
             if not possible or len(comb) != 7: continue
             
-            # Filtre Mellizos (Apostes 1-4)
-            present_mells = [n for n in comb if n in mells_nums]
+            # Mellizos (1-4)
+            present_mells = [n for n in comb if n in [11, 22, 33, 44]]
             if sel_mellizos and i <= 4:
                 if len(present_mells) != 1: continue
             elif not sel_mellizos and len(present_mells) > 0: continue
             
-            # Filtre Clumps (Seguits - Apostes 3-6)
+            # Clumps (3-6)
             comb.sort()
             seguits = sum(1 for j in range(len(comb)-1) if comb[j+1] == comb[j]+1)
             if sel_clumps and i >= 3:
                 if seguits != 1: continue
             elif not sel_clumps and seguits > 0: continue
             
-            # Paritat (Parells/Senars)
+            # Paritat i Terminacions
             if sum(1 for n in comb if n % 2 == 0) != paritat_parells: continue
+            if not validar_terminacions(comb, reps_demanades): continue
             
-            # Unitats repetides
-            if not validar_terminacions(comb, sel_un_rep): continue
-            
-            # FILTRE CREUAT: No més de 2 iguals amb les apostes ja generades
+            # Filtre Creuat (max 2 iguals)
             if any(len(set(comb) & set(res)) > 2 for res in resultats): continue
             
             resultats.append(comb)
             success = True
-            
     return resultats
 
-# --- ACCIÓ I RESULTATS ---
+# --- BOTÓ I RESULTATS ---
 
-if st.button("🚀 GENERAR 6 COMBINACIONS MÚLTIPLES"):
-    final_apostes = generar_sistema()
-    
-    if len(final_apostes) < 6:
-        st.error("⚠️ Impossible trobar combinacions amb aquests filtres. Relaxa els vetos d'unitats.")
+if st.button("🚀 GENERAR 6 COMBINACIONS"):
+    apostes = generar_sistema()
+    if len(apostes) < 6:
+        st.error("⚠️ Filtres massa estrictes. Prova de canviar els selectors.")
     else:
-        for idx, aposta in enumerate(final_apostes):
-            paritat_txt = "3P/4S" if (idx+1) in [1,3,5] else "4P/3S"
-            st.markdown(f"**Aposta {idx+1} ({paritat_txt})**")
-            st.success(" - ".join(map(str, aposta)))
-
-st.markdown("<br><br>", unsafe_allow_html=True)
-st.caption("Dissenyat per a ús personal. Filtres de criba bloquejats segons especificacions.")
+        for idx, a in enumerate(apostes):
+            st.markdown(f"**Aposta {idx+1}**")
+            st.success(" - ".join(map(str, a)))
