@@ -4,58 +4,61 @@ import random
 
 st.set_page_config(page_title="Prometheus", page_icon="🔥", layout="wide")
 
+# 1. Recuperar la clau dels Secrets
 if "LOTERIA_API_KEY" not in st.secrets:
-    st.error("❌ CLAU NO TROBADA ALS SECRETS")
+    st.error("❌ CLAU NO TROBADA")
     st.stop()
 
-# Netegem la clau per si hi ha espais
 api_key = st.secrets["LOTERIA_API_KEY"].strip()
 
-# URL ALTERNATIVA (Més directa segons la seva doc)
-URL = "https://loteriasapi.com"
+# 2. Configuració d'URL segons el format v1 (://loteriasapi.com)
+URL_V1 = "https://://loteriasapi.com/api/v1/results/primitiva/latest"
 HEADERS = {
     "X-API-Key": api_key,
-    "Content-Type": "application/json",
-    "User-Agent": "Mozilla/5.0" # Enganyem al servidor perquè sembli un navegador
+    "Content-Type": "application/json"
 }
 
-def carregar_dades():
+@st.cache_data(ttl=300)
+def fetch_primitiva():
     try:
-        # Provem la petició passant la clau també com a paràmetre per si el header falla
-        response = requests.get(f"{URL}?key={api_key}&last=50", headers=HEADERS, timeout=15)
+        response = requests.get(URL_V1, headers=HEADERS, timeout=15)
         if response.status_code == 200:
             return response.json()
         else:
-            return f"Codi error: {response.status_code}"
+            return f"Error {response.status_code}: {response.reason}"
     except Exception as e:
         return str(e)
 
+# --- INTERFÍCIE ---
 st.title("🔥 Prometheus")
 
-resultat = carregar_dades()
+res = fetch_primitiva()
 
-if isinstance(resultat, list) and len(resultat) > 0:
-    st.success("✅ CONECTAT!")
-    ultim = resultat[0]
+if isinstance(res, dict) and res.get('success'):
+    st.success("✅ CONECTAT AMB ÈXIT!")
+    data = res.get('data', {})
     
-    # Mostrem dades segons el format de loteriasapi.com
-    st.subheader(f"📅 Últim sorteig: {ultim.get('fecha')}")
-    st.write(f"**Combinació:** {ultim.get('combinacion')}")
-    st.write(f"**Reintegre:** {ultim.get('reintegro')}")
+    st.subheader(f"📅 Sorteig: {data.get('drawDate')}")
+    comb = data.get('combination', [])
+    reint = data.get('resultData', {}).get('reintegro', '?')
     
-    # Grups pactats (Corregit l'error de sintaxi)
+    st.write(f"**Combinació:** {comb}")
+    st.write(f"**Reintegre:** {reint}")
+    
+    # GRUPS BLOQUEJATS (Sintaxi corregida)
     g = {
         "MELLIZOS": [11, 22, 33, 44],
-        "CALIENTES": str(ultim.get('combinacion')).split('-') if ultim.get('combinacion') else []
+        "CALIENTES": comb
     }
     
     st.divider()
     if st.button("🚀 GENERAR 6 MÚLTIPLES"):
         st.info("Generant amb els 11 filtres bloquejats...")
         for i in range(1, 7):
-            comb = sorted(random.sample(range(1, 50), 7))
-            st.write(f"**A{i}:** {comb}")
+            # Motor provisional per testar que el botó funciona
+            aposta = sorted(random.sample(range(1, 50), 7))
+            st.write(f"**A{i}:** {aposta}")
 else:
-    st.error("❌ El servidor no ha enviat dades JSON.")
-    st.write("Resposta del servidor:", resultat)
-    st.info("💡 Si surt 'Codi error: 401', la teva Key no és correcta. Si surt un text HTML, l'adreça està bloquejada.")
+    st.error("❌ L'API no ha enviat dades vàlides.")
+    st.write("Resposta del servidor:", res)
+    st.info("💡 Verifica que l'API Key als Secrets de Streamlit sigui la correcta.")
