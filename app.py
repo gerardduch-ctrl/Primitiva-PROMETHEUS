@@ -3,64 +3,70 @@ import requests
 
 st.set_page_config(page_title="Prometheus Primitiva", page_icon="🔥")
 
-# 1. Verificació de la clau als Secrets
+# 1. Verificació de la clau
 if "LOTERIA_API_KEY" not in st.secrets:
-    st.error("❌ Falta la clau 'LOTERIA_API_KEY' als Secrets de Streamlit.")
+    st.error("❌ Falta la clau 'LOTERIA_API_KEY' als Secrets.")
     st.stop()
 
 api_key = st.secrets["LOTERIA_API_KEY"]
 
-# 2. Configuració de la petició
-# L'adreça segons documentació oficial
-URL = "https://loteriasapi.com"
-
-# Afegim headers per "forçar" el format JSON
+# 2. CONFIGURACIÓ SEGONS MANUAL '://loteriasapi.com'
+# Hem d'usar el subdomini 'api.' i la ruta '/v1/results/'
+URL = "https://://loteriasapi.com/api/v1/results/primitiva"
 HEADERS = {
-    "Accept": "application/json",
+    "X-API-Key": api_key,
     "Content-Type": "application/json"
 }
 
-def carregar_dades_final():
-    # Enviem la key i el límit de 100 sorteigs per als filtres
-    params = {"key": api_key, "last": 100}
+def carregar_dades_v1():
     try:
-        response = requests.get(URL, params=params, headers=HEADERS, timeout=15)
+        # Demanem l'històric (limit=50)
+        response = requests.get(f"{URL}?limit=50", headers=HEADERS, timeout=15)
         
         if response.status_code == 200:
-            # Verifiquem si és realment un JSON abans de carregar-lo
-            try:
-                return response.json()
-            except:
-                st.error("El servidor ha respost, però el format no és correcte.")
-                return None
+            json_data = response.json()
+            # Les dades en la v1 solen estar dins de 'data' o 'results'
+            if 'data' in json_data:
+                return json_data['data']
+            return json_data
         else:
             st.error(f"Error {response.status_code}: {response.reason}")
             return None
     except Exception as e:
-        st.error(f"Error de xarxa: {str(e)}")
+        st.error(f"Error de connexió: {str(e)}")
         return None
 
 # --- INTERFÍCIE ---
 st.title("🔥 Prometheus: La Primitiva")
 
-dades = carregar_dades_final()
+dades = carregar_dades_v1()
 
-if dades and isinstance(dades, list):
-    st.success(f"✅ CONECTAT! Detectats {len(dades)} sorteigs.")
+if dades:
+    st.success("✅ CONECTAT! Dades rebudes de l'API v1.")
     
     st.subheader("📅 Últims 4 Sorteigs")
     cols = st.columns(4)
+    
+    # Adaptem els noms dels camps al format de la v1 (drawDate i combination)
     for i in range(min(4, len(dades))):
         s = dades[i]
         with cols[i]:
-            # En aquesta API els camps solen ser 'fecha', 'combinacion' i 'reintegro'
-            data_s = s.get('fecha', 'N/A')
-            comb = s.get('combinacion', '?-?-?-?-?-?')
-            reint = s.get('reintegro', '?')
+            data_s = s.get('drawDate', s.get('fecha', 'N/A'))
+            comb = s.get('combination', s.get('combinacion', []))
+            # Si és una llista [1,2,3], la convertim a text
+            if isinstance(comb, list):
+                num_text = "-".join(map(str, comb))
+            else:
+                num_text = str(comb)
+            
+            # El reintegre sol estar dins de resultData en la v1
+            res_data = s.get('resultData', {})
+            reint = res_data.get('reintegro', s.get('reintegro', '?'))
+            
             st.metric(label=data_s, value=f"R: {reint}")
-            st.write(f"**{comb}**")
+            st.write(f"**{num_text}**")
     
     st.divider()
-    st.info("💡 Connexió estable. Llest per activar el motor de càlcul.")
+    st.info("💡 Connexió OK. Motor de filtres a punt per ser activat.")
 else:
-    st.warning("🔄 Verificant dades... Revisa que la Key sigui correcta.")
+    st.warning("🔄 Verificant protocol de dades... Si surt error 401, revisa la Key.")
