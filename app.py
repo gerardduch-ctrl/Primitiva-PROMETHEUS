@@ -1,19 +1,32 @@
-"
+import streamlit as st
+import requests
+import random
+
+# --- CONFIGURACIÓ DE PÀGINA ---
+st.set_page_config(page_title="Prometheus", page_icon="🔥", layout="wide")
+
+if "LOTERIA_API_KEY" not in st.secrets:
+    st.error("❌ CLAU NO TROBADA ALS SECRETS")
+    st.stop()
+
+# Neteja de la clau
+API_KEY = st.secrets["LOTERIA_API_KEY"].strip().replace('"', '').replace("'", "")
+
+# Protocol de connexió estable
+BASE_URL = "https://loteriasapi.com"
 HEADERS = {
     "X-API-Key": API_KEY,
     "Content-Type": "application/json",
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    "User-Agent": "Mozilla/5.0"
 }
 
 @st.cache_data(ttl=3600, show_spinner=False)
-def carregar_dades_reals():
+def fetch_dades():
     try:
-        # Peticions als resultats i estadístiques oficials
-        r = requests.get(f"{BASE_URL}/results/primitiva?limit=50", headers=HEADERS, timeout=15).json()
-        s = requests.get(f"{BASE_URL}/statistics/primitiva/numbers", headers=HEADERS, timeout=15).json()
-        return r.get('data', []), s.get('data', [])
-    except Exception as e:
-        return None, None
+        r = requests.get(f"{BASE_URL}/results/primitiva?limit=50", headers=HEADERS, timeout=10).json().get('data', [])
+        s = requests.get(f"{BASE_URL}/statistics/primitiva/numbers", headers=HEADERS, timeout=10).json().get('data', [])
+        return r, s
+    except: return [], []
 
 def verificar_filtres(comb):
     pares = [n for n in comb if n % 2 == 0]
@@ -40,13 +53,11 @@ def preparar_grups(res, stats):
     n_u6, n_u18 = list(set([n for s in u6 for n in s['combination']])), [n for s in u18 for n in s['combination']]
     g["DESPERTANDO"] = [n for n in n_u6 if n in g["CALIENTES"]]
     g["NEUTROS"] = [n for n in nums_49 if n_u9.count(n) == 1 and n_u18.count(n) == 2]
-    # Línia corregida de Mellizos
     g["MELLIZOS"] =
     g["COMUNES"] = list(set(g["DOWN"]) & set(g["HIELO"]) & set(g["FRIOS"]))
     return g
 
-# --- GENERADOR AMB ELS 11 FILTRES ---
-def generar_multiple(idx, g, m_on, c_on, usats):
+def generar_aposta(idx, g, m_on, c_on, usats):
     for _ in range(3000):
         c = []
         p_desp = g["DESPERTANDO"] if len(g["DESPERTANDO"]) >= 4 else g["COMUNES"]
@@ -70,7 +81,7 @@ def generar_multiple(idx, g, m_on, c_on, usats):
 
 # --- INTERFÍCIE ---
 st.title("🔥 Prometheus")
-res, stats = carregar_dades_reals()
+res, stats = fetch_dades()
 
 if res and stats:
     g = preparar_grups(res, stats)
@@ -89,12 +100,11 @@ if res and stats:
     m_on, c_on = c1.toggle("MELLIZOS"), c2.toggle("CLUMPS")
 
     if st.button("🚀 GENERAR 6 MÚLTIPLES", use_container_width=True):
-        usats_global = []
+        usats = []
         r_f = [i for i in range(10) if i not in [s.get('resultData',{}).get('reintegro') for s in res[:10]]]
         for i in range(1, 7):
-            comb = generar_multiple(i, g, m_on, c_on, usats_global)
-            usats_global.extend(comb)
+            comb = generar_aposta(i, g, m_on, c_on, usats)
+            usats.extend(comb)
             reint = random.choice(r_f) if i <= 3 else random.choice(range(10))
             st.success(f"**A{i}:** {', '.join(map(str, comb))} | R: {reint}")
-else:
-    st.info("🔄 Verificant dades... Revisa que la Key sigui l'original de Loteria API.")
+else: st.info("🔄 Verificant dades de l'API...")
