@@ -1,58 +1,53 @@
 import streamlit as st
 import requests
 
-# 1. Configuració de la pàgina
 st.set_page_config(page_title="Prometheus Primitiva", page_icon="🔥")
 
-# 2. Gestió de la Key (Secrets de Streamlit)
+# 1. Obtenir la clau dels Secrets
 if "LOTERIA_API_KEY" not in st.secrets:
-    st.error("❌ Falta la clau LOTERIA_API_KEY als Secrets.")
+    st.error("❌ CLAU NO TROBADA")
     st.stop()
 
-# Netegem la clau per si hi ha espais o caràcters invisibles
 api_key = st.secrets["LOTERIA_API_KEY"].strip()
 
-# 3. Configuració de l'API (Segons el manual que has passat)
-URL_LATEST = "https://loteriasapi.com"
+# 2. Configuració de l'URL i Headers (Protocol millorat)
+URL = "https://loteriasapi.com"
 HEADERS = {
     "X-API-Key": api_key,
-    "Content-Type": "application/json"
+    "Content-Type": "application/json",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 }
 
-@st.cache_data(ttl=300)
-def carregar_ultim_resultat():
+@st.cache_data(ttl=60)
+def carregar_dades_vFinal():
     try:
-        response = requests.get(URL_LATEST, headers=HEADERS, timeout=10)
+        # Fem la petició
+        response = requests.get(URL, headers=HEADERS, timeout=15)
+        
+        # Si ens dona 200 (OK), intentem llegir el JSON
         if response.status_code == 200:
             return response.json()
         else:
-            st.error(f"⚠️ Error {response.status_code}: {response.reason}")
-            return None
+            return f"Error {response.status_code}: {response.reason}"
     except Exception as e:
-        st.error(f"❌ Error de xarxa: {str(e)}")
-        return None
+        return f"Error de xarxa: {str(e)}"
 
-# --- INTERFÍCIE VISUAL ---
+# --- INTERFÍCIE ---
 st.title("🔥 Prometheus: La Primitiva")
 
-res = carregar_ultim_resultat()
+resultat = carregar_dades_vFinal()
 
-if res and res.get('success'):
-    data = res.get('data', {})
-    st.success("✅ Connexió establerta! Dades rebudes.")
+if isinstance(resultat, dict) and resultat.get('success'):
+    st.success("✅ CONECTAT AMB ÈXIT!")
+    data = resultat.get('data', {})
     
-    # Mostrem l'últim sorteig segons el format JSON que has passat
-    st.subheader(f"📅 Sorteig del {data.get('drawDate')}")
+    st.subheader(f"📅 Últim sorteig: {data.get('drawDate')}")
+    st.write(f"**Combinació:** {data.get('combination')}")
+    st.write(f"**Reintegre:** {data.get('resultData', {}).get('reintegro')}")
     
-    col1, col2 = st.columns([2, 1])
-    with col1:
-        nums = "-".join(map(str, data.get('combination', [])))
-        st.markdown(f"### Combinació: `{nums}`")
-    with col2:
-        reint = data.get('resultData', {}).get('reintegro', '?')
-        st.metric("Reintegre", reint)
-        
     st.divider()
-    st.info("💡 L'API ja respon. Estic llest per programar el motor de 6 combinacions amb els 11 filtres.")
+    st.info("💡 Connexió OK. Ja podem injectar el motor de càlcul amb els 11 filtres.")
 else:
-    st.warning("🔄 Esperant dades... Revisa que la Key sigui l'original del teu panell.")
+    st.error("❌ El servidor encara no envia dades vàlides.")
+    st.write("Detall del servidor:", resultat)
+    st.info("Si surt 'Error 401', la clau dels Secrets és incorrecta. Si surt '403', l'API ens està bloquejant.")
