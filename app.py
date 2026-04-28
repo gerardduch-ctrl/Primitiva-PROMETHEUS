@@ -2,117 +2,122 @@ import streamlit as st
 import requests
 import random
 
-st.set_page_config(page_title="Prometeus Primitiva", page_icon="🔥")
+# Config d'estil i icona
+st.set_page_config(page_title="Prometeus Primitiva", page_icon="🔥", layout="centered")
 
-# --- 1. CONNEXIÓ REAL API ---
-def get_real_data():
+# --- 1. OBTENCIÓ DE DADES REALS (LOTERIA API) ---
+def get_loterias_api_data():
     try:
-        # Intentem obtenir dades reals de l'API de El País (molt comuna per Primitiva)
-        r = requests.get("https://elpais.com")
+        # Utilitzem l'endpoint de Primitiva de LoteriasAPI.com
+        api_key = st.secrets["LOTERIA_API_KEY"]
+        url = f"https://loteriasapi.com{api_key}"
+        r = requests.get(url, timeout=5)
         data = r.json()
         return {
-            "data": data['fecha'],
-            "numeros": data['combinacion'],
-            "bote": data['proximo_bote']
+            "data": data.get('fecha', 'Desconeguda'),
+            "numeros": data.get('combinacion', 'N/A'),
+            "bote": data.get('bote_proximo', 'Consultant...')
         }
     except:
-        return {"data": "No disponible", "numeros": "0-0-0-0-0-0", "bote": "Consultant..."}
+        return {"data": "Error API", "numeros": "0-0-0-0-0-0", "bote": "No disponible"}
 
-api_data = get_real_data()
+api_info = get_loterias_api_data()
 
+# --- INTERFÍCIE ---
 st.title("🔥 Prometeus Primitiva")
-st.metric("BOTE PRÒXIM SORTEIG", api_data['bote'])
-st.write(f"Darrer sorteig ({api_data['data']}): **{api_data['numeros']}**")
+st.metric("BOTE PRÒXIM SORTEIG", api_info['bote'])
+st.write(f"Darrer sorteig ({api_info['data']}): **{api_info['numeros']}**")
 st.divider()
 
-# --- 2. SELECTORS ---
-with st.expander("⚙️ CONFIGURACIÓ BLOQUEJADA"):
-    sel_un_rep = st.multiselect("UNITAT REPETIDA (Max 2)", list(range(10)), max_selections=2)
-    sel_un_vet = st.multiselect("UNITAT VETADA (Max 4)", list(range(10)), max_selections=4)
-    sel_mellizos = st.toggle("ACTIVA MELLIZOS (11, 22, 33, 44)")
-    sel_clumps = st.toggle("ACTIVA CLUMPS (Seguits)")
+# --- 2. SELECTORS (CONFIGURACIÓ PACTADA) ---
+with st.sidebar:
+    st.header("⚙️ CONFIGURACIÓ")
+    
+    # SELECTOR DECENAS
+    sel_decena_koixa = st.radio("S. DECENAS (Desena amb NOMÉS 1 número):", 
+                               ["Cap", "1-10", "11-20", "21-30", "31-40", "41-49"])
+    
+    # SELECTOR UNITATS
+    sel_un_rep = st.multiselect("S. UNITAT REPETIDA (Max 2)", list(range(10)), max_selections=2)
+    sel_un_vet = st.multiselect("S. UNITAT VETADA (Max 4)", list(range(10)), max_selections=4)
+    
+    # ALTRES SELECTORS
+    sel_mellizos = st.toggle("S. MELLIZOS (11, 22, 33, 44)")
+    sel_clumps = st.toggle("S. CLUMPS (2 Seguits)")
 
-# --- 3. MOTOR DE GENERACIÓ AMB FILTRE CREUAT ---
+# --- 3. LÒGICA DE CRIBATGE ---
 def validar_terminacions(nums, sel_rep):
-    unitats = [n % 10 for n in nums]
-    counts = {x: unitats.count(x) for x in set(unitats)}
-    reps_trobades = [u for u, c in counts.items() if c > 1]
+    units = [n % 10 for n in nums]
+    counts = {x: units.count(x) for x in set(units)}
+    reps_reals = [u for u, c in counts.items() if c > 1]
     
-    # Si no hem triat res, només pot haver-hi 1 unitat repetida (màxim 2 cops)
-    if not sel_rep:
-        return len(reps_trobades) <= 1 and all(c <= 2 for c in counts.values())
-    
-    # Si hem triat unitats, han de ser aquestes i no unes altres
-    if not all(r in sel_rep for r in reps_trobades): return False
-    # Ha de contenir les repetides que hem demanat
-    if not all(r in counts and counts[r] >= 2 for r in sel_rep): return False
-    # Màxim 2 números per unitat
-    return all(c <= 2 for c in counts.values())
+    # Si demanem unitats repetides específiques
+    if sel_rep:
+        if not all(r in reps_reals for r in sel_rep): return False
+        if not all(r in sel_rep for r in reps_reals): return False
+    else:
+        if len(reps_reals) > 1: return False # Per defecte només 1 repetida
+        
+    return all(c <= 2 for c in counts.values()) # Màxim 2 de cada unitat
 
-def generar_6_apostes():
+def generar_apostes():
     resultats = []
-    perfils = [
+    # Perfils de 7 números segons la teva llista
+    perfils_base = [
         [2,1,1,2,1], [2,1,2,1,1], [2,2,1,1,1], 
         [1,1,2,2,1], [1,2,1,2,1], [1,2,2,1,1]
     ]
-    mells = [11, 22, 33, 44]
     
     for i in range(1, 7):
-        paritat_parells = 3 if i in [1, 3, 5] else 4
         success = False
-        intentos_locals = 0
+        paritat_parells = 3 if i in [1, 3, 5] else 4
         
-        while not success and intentos_locals < 10000:
-            intentos_locals += 1
+        while not success:
             comb = []
+            perfil = random.choice(perfils_base)
             
-            # Construcció per desenes segons perfil
+            # Filtre "Selector Decenas": Si s'ha triat una desena "koixa", el perfil ha de tenir un 1 allà
+            dec_map = {"1-10":0, "11-20":1, "21-30":2, "31-40":3, "41-49":4}
+            if sel_decena_koixa != "Cap":
+                idx_v = dec_map[sel_decena_koixa]
+                if perfil[idx_v] != 1: continue
+
+            # Construcció
             blocs = [list(range(1,11)), list(range(11,21)), list(range(21,31)), list(range(31,41)), list(range(41,50))]
-            for idx, qty in enumerate(perfils[i-1]):
-                valid_pool = [n for n in blocs[idx] if n % 10 not in sel_un_vet]
-                if len(valid_pool) < qty: break
-                comb.extend(random.sample(valid_pool, qty))
+            for idx, qty in enumerate(perfil):
+                pool = [n for n in blocs[idx] if n % 10 not in sel_un_vet]
+                if len(pool) < qty: break
+                comb.extend(random.sample(pool, qty))
             
             if len(comb) != 7: continue
             
-            # Filtre Paritat (3P/4S o 4P/3S segons aposta)
-            if sum(1 for n in comb if n % 2 == 0) != paritat_parells: continue
-            
-            # Filtre Mellizos
-            mells_present = [n for n in comb if n in mells]
+            # Filtres Mellizos i Clumps
+            mells = [11, 22, 33, 44]
+            present_mells = [n for n in comb if n in mells]
             if sel_mellizos and i <= 4:
-                if len(mells_present) != 1: continue
-            else:
-                if len(mells_present) > 0: continue
+                if len(present_mells) != 1: continue
+            elif not sel_mellizos and len(present_mells) > 0: continue
             
-            # Filtre Clumps (Seguits)
             comb.sort()
             seguits = sum(1 for j in range(len(comb)-1) if comb[j+1] == comb[j]+1)
             if sel_clumps and i >= 3:
                 if seguits != 1: continue
-            else:
-                if seguits > 0: continue
+            elif not sel_clumps and seguits > 0: continue
             
-            # Filtre Terminacions (Selector Unitat Repetida)
+            # Paritat i Unitats
+            if sum(1 for n in comb if n % 2 == 0) != paritat_parells: continue
             if not validar_terminacions(comb, sel_un_rep): continue
             
-            # --- FILTRE DE SEGURETAT: NO MÉS DE 2 IGUALS AMB APOSTES ANTERIORS ---
-            coincidencies_riques = False
-            for anterior in resultats:
-                comuns = len(set(comb) & set(anterior))
-                if comuns > 2:
-                    coincidencies_riques = True
-                    break
-            if coincidencies_riques: continue
+            # FILTRE CREUAT: No més de 2 iguals amb les anteriors
+            if any(len(set(comb) & set(res)) > 2 for res in resultats): continue
             
             resultats.append(comb)
             success = True
             
     return resultats
 
-if st.button("GENERAR APOSTES PROMETEUS"):
-    final_list = generar_6_apostes()
-    if len(final_list) < 6:
-        st.error("Els filtres són massa restrictius. Prova a vetar menys unitats.")
-    for idx, res in enumerate(final_list):
-        st.write(f"**Aposta {idx+1}:** `{res}`")
+if st.button("GENERAR 6 COMBINACIONS"):
+    apostes = generar_apostes()
+    for i, a in enumerate(apostes):
+        st.subheader(f"Aposta {i+1}")
+        st.code(" - ".join(map(str, a)))
