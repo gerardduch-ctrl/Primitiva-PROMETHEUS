@@ -11,42 +11,45 @@ st.markdown("""
     h3 { margin-top: 25px; color: #333; border-bottom: 2px solid #FF4B4B; width: 100%; padding-bottom: 5px; }
     div.row-widget.stRadio > div{ flex-direction:row; justify-content: center; gap: 10px; }
     .info-text { font-size: 14px; color: #666; margin-bottom: 10px; text-align: center; }
+    .veto-label { font-size: 13px; color: #999; margin-top: 5px; text-align: center; }
     </style>
     """, unsafe_allow_html=True)
 
 st.title("🔥 Prometeus Primitiva")
 
-# --- PANELLS DE CONFIGURACIÓ TOTALMENT DESPLEGATS ---
+# --- PANELLS DE CONFIGURACIÓ ---
 
 st.markdown("### 1. Selector de Decenes")
-st.write("Tria la desena que vols que tingui NOMÉS 1 número:")
+st.write("Desena amb NOMÉS 1 número:")
 sel_decena_koixa = st.radio("D", ["Cap", "1-10", "11-20", "21-30", "31-40", "41-49"], horizontal=True, label_visibility="collapsed")
 
-st.markdown("### 2. Selector d'Unitat Repetida (1)")
-st.write("Primera terminació a repetir (apareixerà 2 cops):")
+st.markdown("### 2. Unitats Repetides")
+st.write("Tria fins a 2 terminacions que vols que apareguin 2 cops:")
 sel_un_rep1 = st.radio("U1", ["Cap", 0, 1, 2, 3, 4, 5, 6, 7, 8, 9], horizontal=True, key="u1", label_visibility="collapsed")
-
-st.markdown("### 3. Selector d'Unitat Repetida (2)")
-st.write("Segona terminació a repetir (opcional):")
 sel_un_rep2 = st.radio("U2", ["Cap", 0, 1, 2, 3, 4, 5, 6, 7, 8, 9], horizontal=True, key="u2", label_visibility="collapsed")
 
-st.markdown("### 4. Selector d'Unitat Vetada")
-st.write("Terminació que vols PROHIBIR totalment:")
-sel_un_vet = st.radio("V", ["Cap", 0, 1, 2, 3, 4, 5, 6, 7, 8, 9], horizontal=True, key="v1", label_visibility="collapsed")
+st.markdown("### 3. Unitats Vetades (Fins a 4)")
+st.write("Tria les terminacions que vols PROHIBIR totalment:")
+v1 = st.radio("V1", ["Cap", 0, 1, 2, 3, 4, 5, 6, 7, 8, 9], horizontal=True, key="v1", label_visibility="collapsed")
+st.markdown("<p class='veto-label'>Veto 1</p>", unsafe_allow_html=True)
+v2 = st.radio("V2", ["Cap", 0, 1, 2, 3, 4, 5, 6, 7, 8, 9], horizontal=True, key="v2", label_visibility="collapsed")
+st.markdown("<p class='veto-label'>Veto 2</p>", unsafe_allow_html=True)
+v3 = st.radio("V3", ["Cap", 0, 1, 2, 3, 4, 5, 6, 7, 8, 9], horizontal=True, key="v3", label_visibility="collapsed")
+st.markdown("<p class='veto-label'>Veto 3</p>", unsafe_allow_html=True)
+v4 = st.radio("V4", ["Cap", 0, 1, 2, 3, 4, 5, 6, 7, 8, 9], horizontal=True, key="v4", label_visibility="collapsed")
+st.markdown("<p class='veto-label'>Veto 4</p>", unsafe_allow_html=True)
 
-st.markdown("### 5. Selector Mellizos (11, 22, 33, 44)")
-st.write("Estat actual del filtre de números bessons:")
+st.markdown("### 4. Mellizos (11, 22, 33, 44)")
 sel_m_status = st.radio("M", ["OFF (Cap)", "ON (Apostes 1 a 4)"], horizontal=True, label_visibility="collapsed")
-st.markdown("<p class='info-text'>Si està ON, les primeres 4 apostes tindran un número bessó (excepte si la unitat està vetada).</p>", unsafe_allow_html=True)
+st.markdown("<p class='info-text'>Si està ON, un número bessó a les apostes 1-4.</p>", unsafe_allow_html=True)
 
-st.markdown("### 6. Selector Clumps (Números seguits)")
-st.write("Estat actual del filtre de consecutius:")
+st.markdown("### 5. Clumps (Números seguits)")
 sel_c_status = st.radio("C", ["OFF (Cap)", "ON (Apostes 3 a 6)"], horizontal=True, label_visibility="collapsed")
-st.markdown("<p class='info-text'>Si està ON, de l'aposta 3 a la 6 hi haurà exactament UNA parella de números seguits.</p>", unsafe_allow_html=True)
+st.markdown("<p class='info-text'>Si està ON, una parella de seguits a les apostes 3-6.</p>", unsafe_allow_html=True)
 
 st.divider()
 
-# --- LÒGICA DE CÀLCUL (BLOQUEJADA) ---
+# --- MOTOR DE CÀLCUL ---
 
 def validar_terminacions(nums, reps_demanades):
     units = [n % 10 for n in nums]
@@ -58,8 +61,12 @@ def validar_terminacions(nums, reps_demanades):
 
 def generar_sistema():
     resultats = []
-    perfils_base = [[2,1,1,2,1],[2,1,2,1,1],[2,2,1,1,1],[1,1,2,2,1],[1,2,1,2,1],[1,2,2,1,1],[1,1,1,2,2],[1,1,2,1,2],[1,2,1,1,2],[2,1,1,1,2]]
+    perfils_base = [
+        [2,1,1,2,1], [2,1,2,1,1], [2,2,1,1,1], [1,1,2,2,1], [1,2,1,2,1],
+        [1,2,2,1,1], [1,1,1,2,2], [1,1,2,1,2], [1,2,1,1,2], [2,1,1,1,2]
+    ]
     reps_demanades = [r for r in [sel_un_rep1, sel_un_rep2] if r != "Cap"]
+    vetos = [v for v in [v1, v2, v3, v4] if v != "Cap"]
     mells_nums = [11, 22, 33, 44]
     
     for i in range(1, 7):
@@ -80,7 +87,7 @@ def generar_sistema():
             blocs = [list(range(1,11)), list(range(11,21)), list(range(21,31)), list(range(31,41)), list(range(41,50))]
             possible = True
             for idx, qty in enumerate(perfil):
-                pool = [n for n in blocs[idx] if (sel_un_vet == "Cap" or n % 10 != sel_un_vet)]
+                pool = [n for n in blocs[idx] if n % 10 not in vetos]
                 if len(pool) < qty: possible = False; break
                 comb.extend(random.sample(pool, qty))
             
@@ -103,7 +110,7 @@ def generar_sistema():
             if sum(1 for n in comb if n % 2 == 0) != p_parells: continue
             if not validar_terminacions(comb, reps_demanades): continue
             
-            # Filtre Creuat (max 2 iguals)
+            # Filtre Creuat (max 2 iguals entre les 6 apostes)
             if any(len(set(comb) & set(res)) > 2 for res in resultats): continue
             
             resultats.append(comb)
