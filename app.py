@@ -17,7 +17,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 st.title("🔥 PROMETEUS ULTRA")
-st.write("Fulminant ultimate edition.")
+st.write("FULMINANT ULTIMATE EDITION.")
 
 # --- PANELLS DE CONFIGURACIÓ AMB DESCRIPCIONS ---
 
