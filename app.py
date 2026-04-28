@@ -1,46 +1,58 @@
 import streamlit as st
 import requests
 
+# 1. Configuració de la pàgina
 st.set_page_config(page_title="Prometheus Primitiva", page_icon="🔥")
 
+# 2. Gestió de la Key (Secrets de Streamlit)
 if "LOTERIA_API_KEY" not in st.secrets:
-    st.error("❌ CLAU NO TROBADA")
+    st.error("❌ Falta la clau LOTERIA_API_KEY als Secrets.")
     st.stop()
 
+# Netegem la clau per si hi ha espais o caràcters invisibles
 api_key = st.secrets["LOTERIA_API_KEY"].strip()
-headers = {"X-API-Key": api_key, "Content-Type": "application/json"}
 
-# Segons el manual, provem la ruta de l'últim resultat primer
-URL_PROVA = "https://loteriasapi.com"
+# 3. Configuració de l'API (Segons el manual que has passat)
+URL_LATEST = "https://loteriasapi.com"
+HEADERS = {
+    "X-API-Key": api_key,
+    "Content-Type": "application/json"
+}
 
-@st.cache_data(ttl=600)
-def carregar_test():
+@st.cache_data(ttl=300)
+def carregar_ultim_resultat():
     try:
-        response = requests.get(URL_PROVA, headers=headers, timeout=15)
+        response = requests.get(URL_LATEST, headers=HEADERS, timeout=10)
         if response.status_code == 200:
             return response.json()
         else:
-            return f"Error {response.status_code}: {response.text[:200]}"
+            st.error(f"⚠️ Error {response.status_code}: {response.reason}")
+            return None
     except Exception as e:
-        return str(e)
+        st.error(f"❌ Error de xarxa: {str(e)}")
+        return None
 
-st.title("🔥 Prometheus: Connexió Directa")
+# --- INTERFÍCIE VISUAL ---
+st.title("🔥 Prometheus: La Primitiva")
 
-resultat = carregar_test()
+res = carregar_ultim_resultat()
 
-if isinstance(resultat, dict) and resultat.get('success'):
-    st.success("✅ CONECTAT! L'API ha respost correctament.")
-    data = resultat.get('data', {})
+if res and res.get('success'):
+    data = res.get('data', {})
+    st.success("✅ Connexió establerta! Dades rebudes.")
     
-    # Mostrem les dades tal com venen de l'API per confirmar noms
-    st.write("### Últim sorteig detectat:")
-    st.write(f"**Data:** {data.get('drawDate')}")
-    st.write(f"**Combinació:** {data.get('combination')}")
-    st.write(f"**Reintegre:** {data.get('resultData', {}).get('reintegro')}")
+    # Mostrem l'últim sorteig segons el format JSON que has passat
+    st.subheader(f"📅 Sorteig del {data.get('drawDate')}")
     
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        nums = "-".join(map(str, data.get('combination', [])))
+        st.markdown(f"### Combinació: `{nums}`")
+    with col2:
+        reint = data.get('resultData', {}).get('reintegro', '?')
+        st.metric("Reintegre", reint)
+        
     st.divider()
-    st.info("💡 Ara que veiem la ruta bona, puc escriure el motor amb els 11 filtres.")
+    st.info("💡 L'API ja respon. Estic llest per programar el motor de 6 combinacions amb els 11 filtres.")
 else:
-    st.error("❌ La ruta '/primitiva/latest' no ha funcionat.")
-    st.write("Resposta del servidor:", resultat)
-    st.info("Provant de localitzar el nom correcte del joc...")
+    st.warning("🔄 Esperant dades... Revisa que la Key sigui l'original del teu panell.")
