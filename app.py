@@ -16,16 +16,16 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🔥 Prometeus Primitiva")
-st.write("Generador d'apostes múltiples amb configuració de criba detallada.")
+st.title("🔥 PROMETEUS ULTRA")
+st.write("Fulminant ultimate edition.")
 
 # --- PANELLS DE CONFIGURACIÓ AMB DESCRIPCIONS ---
 
-st.markdown("### 1. Selector de Decenes")
+st.markdown("### 1. Desenes")
 st.markdown("<p class='desc-text'>Controla la densitat per grup. Tria quina desena vols que quedi limitada a un sol número seguint els perfils 2/1/1/2/1.</p>", unsafe_allow_html=True)
 sel_decena_koixa = st.radio("D", ["Cap", "1-10", "11-20", "21-30", "31-40", "41-49"], horizontal=True, label_visibility="collapsed")
 
-st.markdown("### 2. Unitats Repetides")
+st.markdown("### 2. Unitats Repe")
 st.markdown("<p class='desc-text'>Força terminacions dobles. Pots triar fins a 2 unitats (0-9) perquè apareguin exactament dues vegades cada una en la combinació.</p>", unsafe_allow_html=True)
 sel_un_rep1 = st.radio("U1", ["Cap", 0, 1, 2, 3, 4, 5, 6, 7, 8, 9], horizontal=True, key="u1", label_visibility="collapsed")
 sel_un_rep2 = st.radio("U2", ["Cap", 0, 1, 2, 3, 4, 5, 6, 7, 8, 9], horizontal=True, key="u2", label_visibility="collapsed")
