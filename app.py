@@ -13,14 +13,15 @@ API_KEY = st.secrets["LOTERIA_API_KEY"].strip()
 HEADERS = {"X-API-Key": API_KEY, "Content-Type": "application/json"}
 BASE_URL = "https://loteriasapi.com"
 
-# --- FUNCIONS DE DADES ---
-@st.cache_data(ttl=3600, show_spinner=False)
+# --- CÀRREGA DE DADES AMB TIMEOUT CONTROLAT ---
 def fetch_dades():
     try:
-        r = requests.get(f"{BASE_URL}/results/primitiva?limit=100", headers=HEADERS, timeout=10).json().get('data', [])
-        s = requests.get(f"{BASE_URL}/statistics/primitiva/numbers", headers=HEADERS, timeout=10).json().get('data', [])
+        # Demanem dades amb un temps d'espera curt per no bloquejar l'usuari
+        r = requests.get(f"{BASE_URL}/results/primitiva?limit=50", headers=HEADERS, timeout=7).json().get('data', [])
+        s = requests.get(f"{BASE_URL}/statistics/primitiva/numbers", headers=HEADERS, timeout=7).json().get('data', [])
         return r, s
-    except: return [], []
+    except Exception as e:
+        return None, None
 
 def verificar_filtres(comb):
     pares = [n for n in comb if n % 2 == 0]
@@ -51,9 +52,9 @@ def preparar_grups(res, stats):
     g["COMUNES"] = list(set(g["DOWN"]) & set(g["HIELO"]) & set(g["FRIOS"]))
     return g
 
-# --- GENERADOR AMB 11 FILTRES ---
+# --- MOTOR DE GENERACIÓ ---
 def generar_aposta(idx, g, m_on, c_on, usats):
-    for _ in range(5000):
+    for _ in range(3000):
         c = []
         p_desp = g["DESPERTANDO"] if len(g["DESPERTANDO"]) >= 4 else g["COMUNES"]
         c.extend(random.sample(p_desp if p_desp else g["UP"], 4))
@@ -86,7 +87,7 @@ res, stats = fetch_dades()
 
 if res and stats:
     g = preparar_grups(res, stats)
-    st.subheader("📊 Anàlisi Últims Sorteigs")
+    st.subheader("📊 Últims Sorteigs Reals")
     cols = st.columns(4)
     for i in range(4):
         with cols[i]:
@@ -108,4 +109,7 @@ if res and stats:
             usats.extend(comb)
             reint = random.choice(r_f) if i <= 3 else random.choice(range(10))
             st.success(f"**A{i}:** {', '.join(map(str, comb))} | R: {reint}")
-else: st.info("🔄 Carregant dades...")
+else:
+    st.warning("⚠️ L'API no respon prou ràpid o la Key és incorrecta.")
+    if st.button("🔄 Tornar a intentar"):
+        st.rerun()
