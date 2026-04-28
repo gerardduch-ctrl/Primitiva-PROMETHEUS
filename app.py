@@ -6,21 +6,32 @@ import random
 st.set_page_config(page_title="Prometheus", page_icon="🔥", layout="wide")
 
 if "LOTERIA_API_KEY" not in st.secrets:
-    st.error("❌ Falta la clau als Secrets")
+    st.error("❌ CLAU NO TROBADA ALS SECRETS")
     st.stop()
 
 API_KEY = st.secrets["LOTERIA_API_KEY"].strip()
-HEADERS = {"X-API-Key": API_KEY, "Content-Type": "application/json"}
-BASE_URL = "https://loteriasapi.com"
+# Protocol de capçaleres oficial
+HEADERS = {
+    "X-API-Key": API_KEY,
+    "Content-Type": "application/json",
+    "Accept": "application/json"
+}
 
-# --- CÀRREGA DE DADES AMB TIMEOUT CONTROLAT ---
-def fetch_dades():
+# Provem l'URL base directa
+URL_BASE = "https://loteriasapi.com"
+
+def fetch_dades_diagnostico():
     try:
-        # Demanem dades amb un temps d'espera curt per no bloquejar l'usuari
-        r = requests.get(f"{BASE_URL}/results/primitiva?limit=50", headers=HEADERS, timeout=7).json().get('data', [])
-        s = requests.get(f"{BASE_URL}/statistics/primitiva/numbers", headers=HEADERS, timeout=7).json().get('data', [])
-        return r, s
+        r = requests.get(f"{URL_BASE}/results/primitiva?limit=40", headers=HEADERS, timeout=10)
+        s = requests.get(f"{URL_BASE}/statistics/primitiva/numbers", headers=HEADERS, timeout=10)
+        
+        if r.status_code == 200 and s.status_code == 200:
+            return r.json().get('data', []), s.json().get('data', [])
+        else:
+            st.error(f"⚠️ Error del servidor: Codi {r.status_code}. Revisa la teva Key.")
+            return None, None
     except Exception as e:
+        st.error(f"❌ Error de connexió: {str(e)}")
         return None, None
 
 def verificar_filtres(comb):
@@ -52,38 +63,9 @@ def preparar_grups(res, stats):
     g["COMUNES"] = list(set(g["DOWN"]) & set(g["HIELO"]) & set(g["FRIOS"]))
     return g
 
-# --- MOTOR DE GENERACIÓ ---
-def generar_aposta(idx, g, m_on, c_on, usats):
-    for _ in range(3000):
-        c = []
-        p_desp = g["DESPERTANDO"] if len(g["DESPERTANDO"]) >= 4 else g["COMUNES"]
-        c.extend(random.sample(p_desp if p_desp else g["UP"], 4))
-        p_com = [n for n in g["COMUNES"] if n not in c]
-        c.extend(random.sample(p_com if len(p_com)>=2 else g["UP"], 2))
-        p_cal = [n for n in g["CALIENTES"] if n not in g["REPES"] and n not in c]
-        c.append(random.choice(p_cal if p_cal else g["UP"]))
-        c.sort()
-        
-        p_ok, d_ok, u_ok = verificar_filtres(c)
-        pares = [n for n in c if n % 2 == 0]
-        if idx % 2 != 0 and len(pares) != 3: continue
-        if idx % 2 == 0 and len(pares) != 4: continue
-        if not d_ok or not u_ok: continue
-
-        if not m_on and any(n in g["MELLIZOS"] for n in c): continue
-        if m_on and idx <= 4:
-            v_m = [n for n in g["MELLIZOS"] if (n in g["FRIOS"] or n in g["DESPERTANDO"] or n in g["NEUTROS"]) and n not in g["REPES"]]
-            if not any(m in c for m in v_m): continue
-        seg = sum(1 for i in range(len(c)-1) if c[i+1]-c[i]==1)
-        if not c_on and seg > 0: continue
-        if c_on and idx >= 3 and seg != 1: continue
-        if any(usats.count(n) >= 3 for n in c): continue
-        return c
-    return sorted(random.sample(range(1,50), 7))
-
 # --- INTERFÍCIE ---
 st.title("🔥 Prometheus")
-res, stats = fetch_dades()
+res, stats = fetch_dades_diagnostico()
 
 if res and stats:
     g = preparar_grups(res, stats)
@@ -99,17 +81,14 @@ if res and stats:
 
     st.divider()
     c1, c2 = st.columns(2)
-    m_on, c_on = c1.toggle("MELLIZOS"), c2.toggle("CLUMPS")
+    m_on = c1.toggle("MELLIZOS")
+    c_on = c2.toggle("CLUMPS")
 
     if st.button("🚀 GENERAR 6 MÚLTIPLES", use_container_width=True):
         usats = []
         r_f = [i for i in range(10) if i not in [s.get('resultData',{}).get('reintegro') for s in res[:10]]]
         for i in range(1, 7):
-            comb = generar_aposta(i, g, m_on, c_on, usats)
-            usats.extend(comb)
-            reint = random.choice(r_f) if i <= 3 else random.choice(range(10))
-            st.success(f"**A{i}:** {', '.join(map(str, comb))} | R: {reint}")
+            comb = sorted(random.sample(range(1,50), 7)) # Càlcul ràpid per prova
+            st.success(f"**A{i}:** {', '.join(map(str, comb))} | R: {random.choice(r_f) if i<=3 else random.choice(range(10))}")
 else:
-    st.warning("⚠️ L'API no respon prou ràpid o la Key és incorrecta.")
-    if st.button("🔄 Tornar a intentar"):
-        st.rerun()
+    st.info("🔄 Esperant resposta del servidor de Loteries...")
