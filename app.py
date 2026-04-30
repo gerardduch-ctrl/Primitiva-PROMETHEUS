@@ -17,7 +17,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 st.title("🔥 PROMETEUS ULTRA")
-st.write("FULMINANT ULTIMATE EDITION.")
+st.write("FULMINANT ULTIMATE EDITION. 6/49 system. V.1")
 
 # --- PANELLS DE CONFIGURACIÓ AMB DESCRIPCIONS ---
 
@@ -41,11 +41,11 @@ st.markdown("<p class='veto-sub'>Veto 3</p>", unsafe_allow_html=True)
 v4 = st.radio("V4", ["Cap", 0, 1, 2, 3, 4, 5, 6, 7, 8, 9], horizontal=True, key="v4", label_visibility="collapsed")
 st.markdown("<p class='veto-sub'>Veto 4</p>", unsafe_allow_html=True)
 
-st.markdown("### 4. Filtre Mellizos")
+st.markdown("### 4. Filtre BESSONS")
 st.markdown("<p class='desc-text'>Activa la presència de números bessons (11, 22, 33, 44) exclusivament per a les apostes 1, 2, 3 i 4.</p>", unsafe_allow_html=True)
 sel_m_status = st.radio("M", ["OFF", "ON"], horizontal=True, label_visibility="collapsed")
 
-st.markdown("### 5. Filtre Clumps")
+st.markdown("### 5. Filtre SEGUITS")
 st.markdown("<p class='desc-text'>Força l'aparició d'una única parella de números seguits (consecutius) en les apostes 3, 4, 5 i 6.</p>", unsafe_allow_html=True)
 sel_c_status = st.radio("C", ["OFF", "ON"], horizontal=True, label_visibility="collapsed")
 
