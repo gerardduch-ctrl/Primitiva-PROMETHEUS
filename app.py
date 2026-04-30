@@ -23,19 +23,17 @@ st.markdown("""
         height: 80px; font-size: 24px; font-weight: bold; border-radius: 20px; 
         background-color: #FF4B4B; color: white; width: 100%; box-shadow: 0px 5px 15px rgba(255,75,75,0.4);
     }
-    /* Estilo para que los checkboxes se vean limpios en parrilla */
     div[data-testid="stCheckbox"] > label { font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🔥 PROMETEUS ULTRA V.2.2")
+st.title("🔥 PROMETEUS ULTRA V.2.3")
 
-# --- 1. FAVORITS (ORDEN HORIZONTAL CORREGIDO) ---
+# --- 1. FAVORITS (ORDEN HORIZONTAL) ---
 st.markdown('<div class="section-header">🎯 1. NÚMEROS FAVORITS (PARRILLA)</div>', unsafe_allow_html=True)
-st.markdown("<p class='desc-text'>Tria fins a 12 números. S'inclourà un per cada aposta. Ordre corregit: 1, 2, 3, 4, 5 de línia en línia.</p>", unsafe_allow_html=True)
+st.markdown("<p class='desc-text'>Tria fins a 12 números. S'inclourà un per cada aposta (màx. 2 repeticions). Vetos i Bessons tenen prioritat.</p>", unsafe_allow_html=True)
 
 fav_nums = []
-# Creamos las filas necesarias para llegar a 49
 for row in range(0, 50, 5):
     cols = st.columns(5)
     for i in range(5):
@@ -45,27 +43,31 @@ for row in range(0, 50, 5):
                 if st.checkbox(f"{n}", key=f"fav_{n}"):
                     fav_nums.append(n)
 
-# --- 2. UNITATS VETADES ---
+# --- 2. UNITATS VETADES (ORDEN HORIZONTAL) ---
 st.markdown('<div class="section-header">🚫 2. UNITATS VETADES</div>', unsafe_allow_html=True)
 st.markdown("<p class='desc-text'>Elimina totalment les terminacions que no vulguis. Afecta també als teus favorits.</p>", unsafe_allow_html=True)
 
 vetos = []
-cols_veto = st.columns(5)
-for v in range(10):
-    with cols_veto[v % 5]:
-        if st.checkbox(f"U-{v}", key=f"v_{v}"):
-            vetos.append(v)
+for row in range(0, 10, 5):
+    cols = st.columns(5)
+    for i in range(5):
+        v = row + i
+        with cols[i]:
+            if st.checkbox(f"U-{v}", key=f"v_{v}"):
+                vetos.append(v)
 
-# --- 3. UNITATS REPES ---
+# --- 3. UNITATS REPES (ORDEN HORIZONTAL) ---
 st.markdown('<div class="section-header">👯 3. UNITATS REPES</div>', unsafe_allow_html=True)
 st.markdown("<p class='desc-text'>Força que aquestes terminacions apareguin dues vegades en la mateixa aposta.</p>", unsafe_allow_html=True)
 
 reps_demanades = []
-cols_rep = st.columns(5)
-for r in range(10):
-    with cols_rep[r % 5]:
-        if st.checkbox(f"R-{r}", key=f"rep_{r}"):
-            reps_demanades.append(r)
+for row in range(0, 10, 5):
+    cols = st.columns(5)
+    for i in range(5):
+        r = row + i
+        with cols[i]:
+            if st.checkbox(f"R-{r}", key=f"rep_{r}"):
+                reps_demanades.append(r)
 
 # --- 4. DESENES ---
 st.markdown('<div class="section-header">📊 4. DESENES</div>', unsafe_allow_html=True)
@@ -73,11 +75,11 @@ sel_decena = st.radio("Limitar desena a un sol número:", ["Cap", "1-10", "11-20
 
 # --- 5. BESSONS ---
 st.markdown('<div class="section-header">💎 5. FILTRE BESSONS</div>', unsafe_allow_html=True)
-bessons_on = st.radio("Activar números bessons:", ["OFF", "ON"], horizontal=True)
+bessons_on = st.radio("Activar números bessons (11, 22, 33, 44):", ["OFF", "ON"], horizontal=True)
 
 st.divider()
 
-# --- MOTOR DE CÀLCUL (Mantenint tota la lògica prèvia) ---
+# --- MOTOR DE CÀLCUL (FUERZA BRUTA 1M) ---
 def generar_sistema():
     resultats = []
     global_favs_used = []
@@ -93,7 +95,7 @@ def generar_sistema():
     if not fav_disponibles and len(fav_nums) > 0: return "ERROR_FAV"
 
     for i in range(1, 7):
-        p_target = 3 if i in [1,3,5] else 4 
+        p_target = 3 if i in [1,3,5] else 4 # 3P/4I o 4P/3I
         pri_target = 3 if i in [1,3,5] else 2
         success = False
         intentos = 1000000 
@@ -151,8 +153,10 @@ def generar_sistema():
 if st.button("🚀 GENERAR 6 APOSTES PROMETEUS"):
     if not fav_nums:
         st.error("⚠️ Tria almenys 1 número favorit.")
+    elif len(reps_demanades) > 2:
+        st.error("⚠️ Tria com a màxim 2 unitats repetides.")
     else:
-        with st.spinner('Força bruta en marxa (1M intents)...'):
+        with st.spinner('Força bruta en marxa (1.000.000 intents)...'):
             apostes = generar_sistema()
         if apostes == "ERROR_FAV":
             st.error("❌ Favorits bloquejats per vetos o besson OFF.")
