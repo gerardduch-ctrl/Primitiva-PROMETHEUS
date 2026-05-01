@@ -3,7 +3,7 @@ import random
 from collections import Counter
 
 # --- CONFIGURACIÓ DE PÀGINA ---
-st.set_page_config(page_title="Prometeus Ultra V.3.", page_icon="🔥", layout="centered")
+st.set_page_config(page_title="Prometeus Ultra V.3", page_icon="🔥", layout="centered")
 
 # --- ESTILS VISUALS ---
 st.markdown("""
@@ -21,7 +21,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🔥 PROMETEUS ULTRA V.3.")
+st.title("🔥 PROMETEUS ULTRA V.3")
 st.write("6/49 Sistem. | 7 NÚMEROS | FULMINANT ULTIMATE EDITION.")
 
 # --- 1. FAVORITS (DESPLEGAT) ---
