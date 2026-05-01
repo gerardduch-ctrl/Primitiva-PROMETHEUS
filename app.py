@@ -3,7 +3,7 @@ import random
 from collections import Counter
 
 # --- CONFIGURACIÓ DE PÀGINA ---
-st.set_page_config(page_title="Prometeus Ultra V.3.1", page_icon="🔥", layout="centered")
+st.set_page_config(page_title="Prometeus Ultra V.2.", page_icon="🔥", layout="centered")
 
 # --- ESTILS VISUALS ---
 st.markdown("""
