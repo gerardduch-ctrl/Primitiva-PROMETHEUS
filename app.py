@@ -43,7 +43,7 @@ for v in range(10):
     with cols_v[v % 5]:
         if st.checkbox(f"U-{v}", key=f"v_{v}"): vetos.append(v)
 
-# --- 3. UNITAT REPE (DESPLEGAT - NOMÉS 1) ---
+# --- 3. UNITAT REPE (DESPLEGAT) ---
 st.markdown('<div class="section-header">👯 3. SELECTOR UNITAT REPETIDA</div>', unsafe_allow_html=True)
 st.markdown("<p class='desc-text'>Tria la unitat que vols que surti 2 cops. Les altres 5 terminacions seran úniques.</p>", unsafe_allow_html=True)
 reps_sel = []
@@ -72,8 +72,8 @@ def generar_sistema():
     
     resultats = []
     global_favs_used = []
-    # Perfils base ajustats per a 7 números (ex: 2+1+1+2+1 = 7)
-    perfils_base = [[2,1,1,2,1],[2,1,2,1,1],[2,2,1,1,1],[1,1,2,2,1],[1,2,1,2,1]]
+    # Perfils base ajustats per a 7 números
+    perfils_base = [[2,1,1,2,1],[2,1,2,1,1],[2,2,1,1,1],[1,1,2,2,1],[1,2,1,2,1],[1,2,2,1,1],[1,1,1,2,2],[1,1,2,1,2],[1,2,1,1,2],[2,1,1,1,2]]
     primos_impares = [3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47]
     mells_nums = [11, 22, 33, 44]
     dec_map = {"1-10":0, "11-20":1, "21-30":2, "31-40":3, "41-49":4}
@@ -139,7 +139,9 @@ def generar_sistema():
                 if seguits != 0: continue
             
             if not (temp_comb[0] <= 15 and temp_comb[-1] >= 38): continue
-            if not (140 <= sum(temp_comb) <= 220): continue
+            
+            # MODIFICACIÓ RANG SUMA: 135-220
+            if not (135 <= sum(temp_comb) <= 220): continue
             
             if any(len(set(temp_comb) & set(res)) > 2 for res in resultats): continue
             
