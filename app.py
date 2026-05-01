@@ -8,18 +8,24 @@ st.set_page_config(page_title="Prometeus Ultra Final", page_icon="🔥", layout=
 # --- ESTILS VISUALS ---
 st.markdown("""
     <style>
-    .section-header { background-color: #F0F2F6; color: #1E1E1E; padding: 12px; border-radius: 10px; border-left: 6px solid #FF4B4B; font-weight: bold; margin-top: 25px; }
-    .desc-text { font-size: 14px; color: #444; margin-bottom: 15px; font-style: italic; }
-    .stButton>button { height: 80px; font-size: 24px; font-weight: bold; border-radius: 20px; background-color: #FF4B4B; color: white; width: 100%; box-shadow: 0px 5px 15px rgba(255,75,75,0.4); }
+    .section-header { 
+        background-color: #F0F2F6; color: #1E1E1E; padding: 12px; border-radius: 10px; 
+        border-left: 6px solid #FF4B4B; font-weight: bold; margin-top: 25px; 
+    }
+    .desc-text { font-size: 14px; color: #444; margin-bottom: 15px; font-style: italic; line-height: 1.4; }
+    .stButton>button { 
+        height: 80px; font-size: 24px; font-weight: bold; border-radius: 20px; 
+        background-color: #FF4B4B; color: white; width: 100%; box-shadow: 0px 5px 15px rgba(255,75,75,0.4); 
+    }
     div[data-testid="stCheckbox"] > label { font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🔥 PROMETEUS ULTRA V.2.9")
-st.write("SISTEMA 7-NÚMEROS | ESTRUCTURA ORIGINAL RESTAURADA")
+st.title("🔥 PROMETEUS ULTRA V.3.0")
 
 # --- 1. FAVORITS ---
 st.markdown('<div class="section-header">🎯 1. NÚMEROS FAVORITS (MÀX 1 PER APOSTA)</div>', unsafe_allow_html=True)
+st.markdown("<p class='desc-text'>S'inclourà exactament 1 favorit per aposta. Aquest filtre mana sobre el de Números Prims.</p>", unsafe_allow_html=True)
 fav_nums = []
 for row in range(0, 50, 5):
     cols = st.columns(5)
@@ -31,6 +37,7 @@ for row in range(0, 50, 5):
 
 # --- 2. UNITATS VETADES ---
 st.markdown('<div class="section-header">🚫 2. UNITATS VETADES</div>', unsafe_allow_html=True)
+st.markdown("<p class='desc-text'>Elimina totalment les terminacions que no vulguis. Afecta també als teus favorits.</p>", unsafe_allow_html=True)
 vetos = []
 for row in range(0, 10, 5):
     cols = st.columns(5)
@@ -41,6 +48,7 @@ for row in range(0, 10, 5):
 
 # --- 3. UNITATS REPES ---
 st.markdown('<div class="section-header">👯 3. UNITATS REPES</div>', unsafe_allow_html=True)
+st.markdown("<p class='desc-text'>Força que aquestes terminacions apareguin dues vegades en la mateixa aposta.</p>", unsafe_allow_html=True)
 reps_sel = []
 for row in range(0, 10, 5):
     cols = st.columns(5)
@@ -49,16 +57,22 @@ for row in range(0, 10, 5):
         with cols[i]:
             if st.checkbox(f"R-{r}", key=f"rep_{r}"): reps_sel.append(r)
 
-# --- 4. CONFIGURACIÓ FINAL ---
-st.markdown('<div class="section-header">📊 4. CONFIGURACIÓ EXTRA</div>', unsafe_allow_html=True)
-sel_decena = st.radio("Limitar desena a 1 número:", ["Cap", "1-10", "11-20", "21-30", "31-40", "41-49"], horizontal=True)
-bessons_on = st.radio("Filtre Bessons (11, 22, 33, 44):", ["OFF", "ON"], horizontal=True)
+# --- 4. BESSONS (ESTÉTICA RESTAURADA) ---
+st.markdown('<div class="section-header">💎 4. FILTRE BESSONS</div>', unsafe_allow_html=True)
+st.markdown("<p class='desc-text'>Activa la presència de números bessons (11, 22, 33, 44) per a les apostes 1 a 4. Si està OFF, s'eliminen totalment.</p>", unsafe_allow_html=True)
+bessons_on = st.radio("M", ["OFF", "ON"], horizontal=True, label_visibility="collapsed")
+
+# --- 5. DESENES ---
+st.markdown('<div class="section-header">📊 5. DESENES</div>', unsafe_allow_html=True)
+st.markdown("<p class='desc-text'>Controla la densitat per grup. Tria quina desena vols que quedi limitada a un sol número.</p>", unsafe_allow_html=True)
+sel_decena = st.radio("D", ["Cap", "1-10", "11-20", "21-30", "31-40", "41-49"], horizontal=True, label_visibility="collapsed")
+
+st.divider()
 
 # --- MOTOR DE CÀLCUL ---
 def generar_sistema():
     resultats = []
     global_favs_used = []
-    # PERFILS ORIGINALS (sumen 7)
     perfils_base = [[2,1,1,2,1],[2,1,2,1,1],[2,2,1,1,1],[1,1,2,2,1],[1,2,1,2,1],[1,2,2,1,1],[1,1,1,2,2],[1,1,2,1,2],[1,2,1,1,2],[2,1,1,1,2]]
     primos_impares = [3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47]
     mells_nums = [11, 22, 33, 44]
