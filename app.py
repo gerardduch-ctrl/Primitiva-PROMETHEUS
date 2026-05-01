@@ -21,11 +21,11 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🔥 PROMETEUS ULTRA V.3.0")
+st.title("🔥 PROMETEUS ULTRA V.3.1")
 
 # --- 1. FAVORITS ---
 st.markdown('<div class="section-header">🎯 1. NÚMEROS FAVORITS (MÀX 1 PER APOSTA)</div>', unsafe_allow_html=True)
-st.markdown("<p class='desc-text'>S'inclourà exactament 1 favorit per aposta. Aquest filtre mana sobre el de Números Prims.</p>", unsafe_allow_html=True)
+st.markdown("<p class='desc-text'>S'inclourà exactament 1 favorit per aposta. Mana sobre els Números Prims.</p>", unsafe_allow_html=True)
 fav_nums = []
 for row in range(0, 50, 5):
     cols = st.columns(5)
@@ -37,7 +37,6 @@ for row in range(0, 50, 5):
 
 # --- 2. UNITATS VETADES ---
 st.markdown('<div class="section-header">🚫 2. UNITATS VETADES</div>', unsafe_allow_html=True)
-st.markdown("<p class='desc-text'>Elimina totalment les terminacions que no vulguis. Afecta també als teus favorits.</p>", unsafe_allow_html=True)
 vetos = []
 for row in range(0, 10, 5):
     cols = st.columns(5)
@@ -48,7 +47,6 @@ for row in range(0, 10, 5):
 
 # --- 3. UNITATS REPES ---
 st.markdown('<div class="section-header">👯 3. UNITATS REPES</div>', unsafe_allow_html=True)
-st.markdown("<p class='desc-text'>Força que aquestes terminacions apareguin dues vegades en la mateixa aposta.</p>", unsafe_allow_html=True)
 reps_sel = []
 for row in range(0, 10, 5):
     cols = st.columns(5)
@@ -57,15 +55,19 @@ for row in range(0, 10, 5):
         with cols[i]:
             if st.checkbox(f"R-{r}", key=f"rep_{r}"): reps_sel.append(r)
 
-# --- 4. BESSONS (ESTÉTICA RESTAURADA) ---
+# --- 4. FILTRE BESSONS ---
 st.markdown('<div class="section-header">💎 4. FILTRE BESSONS</div>', unsafe_allow_html=True)
-st.markdown("<p class='desc-text'>Activa la presència de números bessons (11, 22, 33, 44) per a les apostes 1 a 4. Si està OFF, s'eliminen totalment.</p>", unsafe_allow_html=True)
-bessons_on = st.radio("M", ["OFF", "ON"], horizontal=True, label_visibility="collapsed")
+bessons_on = st.radio("B", ["OFF", "ON"], horizontal=True, label_visibility="collapsed")
 
-# --- 5. DESENES ---
-st.markdown('<div class="section-header">📊 5. DESENES</div>', unsafe_allow_html=True)
-st.markdown("<p class='desc-text'>Controla la densitat per grup. Tria quina desena vols que quedi limitada a un sol número.</p>", unsafe_allow_html=True)
-sel_decena = st.radio("D", ["Cap", "1-10", "11-20", "21-30", "31-40", "41-49"], horizontal=True, label_visibility="collapsed")
+# --- 5. DESENA KOIXA (LIMITADA A 1) ---
+st.markdown('<div class="section-header">📊 5. DESENA KOIXA (LIMITADA A 1)</div>', unsafe_allow_html=True)
+st.markdown("<p class='desc-text'>Tria quina desena vols que quedi limitada a un sol número.</p>", unsafe_allow_html=True)
+sel_decena_koixa = st.radio("D1", ["Cap", "1-10", "11-20", "21-30", "31-40", "41-49"], horizontal=True, label_visibility="collapsed")
+
+# --- 6. DESENA REPE (FORÇADA A 2) ---
+st.markdown('<div class="section-header">📈 6. DESENA REPE (FORÇADA A 2)</div>', unsafe_allow_html=True)
+st.markdown("<p class='desc-text'>Tria quina desena vols que contingui exactament 2 números.</p>", unsafe_allow_html=True)
+sel_decena_repe = st.radio("D2", ["Cap", "1-10", "11-20", "21-30", "31-40", "41-49"], horizontal=True, label_visibility="collapsed")
 
 st.divider()
 
@@ -90,13 +92,15 @@ def generar_sistema():
         while not success and intentos > 0:
             intentos -= 1
             perfil = random.choice(perfils_base)
-            if sel_decena != "Cap" and perfil[dec_map[sel_decena]] != 1: continue
+            
+            # Validació de Desenis (Koixa i Repe)
+            if sel_decena_koixa != "Cap" and perfil[dec_map[sel_decena_koixa]] != 1: continue
+            if sel_decena_repe != "Cap" and perfil[dec_map[sel_decena_repe]] != 2: continue
 
             c_favs = Counter(global_favs_used)
             candidats = [n for n in fav_disponibles if c_favs[n] < 2]
             if not candidats: candidats = fav_disponibles
             chosen_fav = random.choice(candidats)
-            
             dec_idx = (chosen_fav-1)//10 if chosen_fav < 50 else 4
             if dec_idx > 4: dec_idx = 4
 
@@ -117,7 +121,7 @@ def generar_sistema():
             if sum(1 for n in temp_comb if n in primos_impares) != pri_target: continue
             
             u_temp = [n % 10 for n in temp_comb]
-            if not all(u_temp.count(r) == 2 for r in reps_sel[:2]): continue
+            if not all(Counter(u_temp)[r] == 2 for r in reps_sel[:2]): continue
             
             n_mells = sum(1 for n in temp_comb if n in mells_nums)
             if bessons_on == "ON" and i <= 4:
@@ -126,13 +130,12 @@ def generar_sistema():
 
             temp_comb.sort()
             seguits = sum(1 for j in range(len(temp_comb)-1) if temp_comb[j+1] == temp_comb[j]+1)
-            
             if i >= 3: 
                 if seguits != 1: continue
             else: 
                 if seguits != 0: continue
             
-            if not (temp_comb[0] <= 15 and temp_comb[-1] >= 38): continue
+            if not (temp_comb <= 15 and temp_comb[-1] >= 38): continue
             if not (140 <= sum(temp_comb) <= 200): continue
             if any(len(set(temp_comb) & set(res)) > 2 for res in resultats): continue
             
@@ -145,8 +148,8 @@ def generar_sistema():
 if st.button("🚀 GENERAR 6 APOSTES PROMETEUS"):
     if not fav_nums: st.error("⚠️ Tria favorits.")
     else:
-        with st.spinner('Força bruta amb perfils originals...'):
+        with st.spinner('Força bruta en marxa...'):
             apostes = generar_sistema()
-        if len(apostes) < 6: st.error("⚠️ No s'ha trobat combinació. Relaxa els filtres.")
+        if len(apostes) < 6: st.error("⚠️ Filtres massa estrictes.")
         else:
             for idx, a in enumerate(apostes): st.success(f"Aposta {idx+1}: {' - '.join(map(str, a))}")
