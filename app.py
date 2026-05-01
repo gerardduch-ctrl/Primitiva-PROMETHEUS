@@ -22,7 +22,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 st.title("🔥 PROMETEUS ULTRA V.2")
-st.write("SISTEMA 7-NÚMEROS | VERSIÓ FINAL CORREGIDA")
+st.write("6/49 Sistem. | FULMINANT ULTIMATE EDITION.")
 
 # --- 1. FAVORITS ---
 st.markdown('<div class="section-header">🎯 1. NÚMEROS FAVORITS (MÀX 1 PER APOSTA)</div>', unsafe_allow_html=True)
