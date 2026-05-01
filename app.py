@@ -21,7 +21,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🔥 PROMETEUS ULTRA V.3.1")
+st.title("🔥 PROMETEUS ULTRA V.2")
 st.write("SISTEMA 7-NÚMEROS | VERSIÓ FINAL CORREGIDA")
 
 # --- 1. FAVORITS ---
